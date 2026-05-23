@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nopeusmittari</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#111827">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1f2937, #020617);
+      color: white;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .app {
+      width: min(420px, 100%);
+      text-align: center;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    h1 {
+      margin: 0 0 22px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .speed {
+      font-size: clamp(72px, 24vw, 128px);
+      font-weight: 900;
+      line-height: .9;
+      letter-spacing: -4px;
+    }
+    .unit {
+      margin-top: 10px;
+      font-size: 28px;
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+    .status {
+      margin: 24px 0;
+      color: #cbd5e1;
+      min-height: 44px;
+      line-height: 1.4;
+    }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      padding: 16px 18px;
+      font-size: 18px;
+      font-weight: 800;
+      background: #22c55e;
+      color: #052e16;
+      cursor: pointer;
+    }
+    button:active { transform: scale(.98); }
+    .small {
+      margin-top: 18px;
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Nopeusmittari</h1>
+
+    <div id="speed" class="speed">0</div>
+    <div class="unit">km/h</div>
+
+    <p id="status" class="status">Paina nappia ja salli sijainnin käyttö.</p>
+
+    <button id="startBtn">Käynnistä GPS-nopeus</button>
+
+    <div class="small">
+      Toimii parhaiten ulkona. Nopeus perustuu puhelimen GPS-tietoon.
+    </div>
+  </main>
+
+  <script>
+    const speedEl = document.getElementById("speed");
+    const statusEl = document.getElementById("status");
+    const startBtn = document.getElementById("startBtn");
+
+    let watchId = null;
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function startSpeedometer() {
+      if (!("geolocation" in navigator)) {
+        setStatus("Tämä selain ei tue sijainnin käyttöä.");
+        return;
+      }
+
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        speedEl.textContent = "0";
+        startBtn.textContent = "Käynnistä GPS-nopeus";
+        setStatus("Nopeusmittari pysäytetty.");
+        return;
+      }
+
+      startBtn.textContent = "Pysäytä";
+      setStatus("Haetaan GPS-signaalia...");
+
+      watchId = navigator.geolocation.watchPosition(
+        position => {
+          const speedMps = position.coords.speed;
+
+          if (speedMps === null) {
+            speedEl.textContent = "0";
+            setStatus("Laite ei anna nopeustietoa vielä. Liiku hetki ulkona.");
+            return;
+          }
+
+          const speedKmh = Math.max(0, speedMps * 3.6);
+          speedEl.textContent = Math.round(speedKmh);
+
+          const accuracy = Math.round(position.coords.accuracy);
+          setStatus(`GPS-tarkkuus noin ${accuracy} m`);
+        },
+        error => {
+          startBtn.textContent = "Käynnistä GPS-nopeus";
+          watchId = null;
+
+          if (error.code === error.PERMISSION_DENIED) {
+            setStatus("Sijainnin käyttö estettiin.");
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            setStatus("Sijaintia ei saatu. Kokeile ulkona.");
+          } else if (error.code === error.TIMEOUT) {
+            setStatus("Sijainnin haku aikakatkaistiin.");
+          } else {
+            setStatus("Tuntematon sijaintivirhe.");
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000
+        }
+      );
+    }
+
+    startBtn.addEventListener("click", startSpeedometer);
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js");
+      });
+    }
+  </script>
+</body>
+</html>
