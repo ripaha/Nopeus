@@ -1,20 +1,19 @@
-const CACHE_NAME = "nopeusmittari-v1";
-const FILES = [
-  "./",
-  "index.html",
-  "manifest.webmanifest",
-  "icon-192.png",
-  "icon-512.png"
-];
+const CACHE_NAME = "nopeusmittari-reitti-v2";
+const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", event => {
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(FILES)));
+});
+
+self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(FILES))
+    caches.keys().then(keys =>
+      Promise.all(keys.map(key => key !== CACHE_NAME ? caches.delete(key) : null))
+    )
   );
 });
 
 self.addEventListener("fetch", event => {
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
+  event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
 });

@@ -6,98 +6,186 @@
   <title>Nopeusmittari</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#111827">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0; min-height: 100vh; font-family: system-ui, sans-serif;
       background: radial-gradient(circle at top, #1f2937, #020617);
-      color: white;
-      display: grid;
-      place-items: center;
-      padding: 24px;
+      color: white; padding: 14px;
     }
     .app {
-      width: min(420px, 100%);
-      text-align: center;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.15);
-      border-radius: 28px;
-      padding: 28px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      width: min(760px, 100%); margin: 0 auto; background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15); border-radius: 24px;
+      padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
     }
-    h1 {
-      margin: 0 0 22px;
-      font-size: 24px;
-      font-weight: 700;
-    }
+    h1 { margin: 0 0 12px; font-size: 24px; text-align: center; }
     .speed {
-      font-size: clamp(72px, 24vw, 128px);
-      font-weight: 900;
-      line-height: .9;
-      letter-spacing: -4px;
+      text-align: center; font-size: clamp(64px, 22vw, 120px);
+      font-weight: 900; line-height: .9; letter-spacing: -4px;
     }
-    .unit {
-      margin-top: 10px;
-      font-size: 28px;
-      color: #cbd5e1;
-      font-weight: 700;
+    .unit { text-align: center; margin-top: 8px; font-size: 26px; color: #cbd5e1; font-weight: 700; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0; }
+    .stat {
+      background: rgba(15, 23, 42, .72); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px; padding: 12px 8px; text-align: center;
     }
-    .status {
-      margin: 24px 0;
-      color: #cbd5e1;
-      min-height: 44px;
-      line-height: 1.4;
-    }
-    button {
-      width: 100%;
-      border: 0;
-      border-radius: 18px;
-      padding: 16px 18px;
-      font-size: 18px;
-      font-weight: 800;
-      background: #22c55e;
-      color: #052e16;
-      cursor: pointer;
-    }
+    .stat strong { display: block; font-size: 22px; line-height: 1.1; }
+    .stat span { color: #94a3b8; font-size: 12px; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    button { border: 0; border-radius: 16px; padding: 14px 12px; font-size: 16px; font-weight: 800; cursor: pointer; }
     button:active { transform: scale(.98); }
-    .small {
-      margin-top: 18px;
-      color: #94a3b8;
-      font-size: 13px;
-      line-height: 1.4;
+    .start { background: #22c55e; color: #052e16; }
+    .clear { background: #ef4444; color: #fff; }
+    .status { margin: 10px 0 14px; color: #cbd5e1; min-height: 38px; line-height: 1.35; text-align: center; }
+    #map {
+      width: 100%; height: 360px; border-radius: 20px; overflow: hidden;
+      background: #0f172a; border: 1px solid rgba(255,255,255,.15);
+    }
+    .small { margin-top: 12px; color: #94a3b8; font-size: 13px; line-height: 1.4; text-align: center; }
+    @media (max-width: 520px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .buttons { grid-template-columns: 1fr; }
+      #map { height: 300px; }
     }
   </style>
 </head>
 <body>
   <main class="app">
     <h1>Nopeusmittari</h1>
-
     <div id="speed" class="speed">0</div>
     <div class="unit">km/h</div>
 
-    <p id="status" class="status">Paina nappia ja salli sijainnin käyttö.</p>
-
-    <button id="startBtn">Käynnistä GPS-nopeus</button>
-
-    <div class="small">
-      Toimii parhaiten ulkona. Nopeus perustuu puhelimen GPS-tietoon.
+    <div class="stats">
+      <div class="stat"><strong id="distance">0.00</strong><span>km matka</span></div>
+      <div class="stat"><strong id="points">0</strong><span>GPS-pistettä</span></div>
+      <div class="stat"><strong id="avgSpeed">0</strong><span>km/h keskinopeus</span></div>
     </div>
+
+    <div class="buttons">
+      <button id="startBtn" class="start">Aloita tallennus</button>
+      <button id="clearBtn" class="clear">Tyhjennä reitti</button>
+    </div>
+
+    <p id="status" class="status">Paina Aloita tallennus ja salli sijainnin käyttö.</p>
+    <div id="map"></div>
+    <div class="small">Reitti tallentuu tämän selaimen muistiin. Kartta käyttää OpenStreetMap-karttapohjaa.</div>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const speedEl = document.getElementById("speed");
+    const distanceEl = document.getElementById("distance");
+    const pointsEl = document.getElementById("points");
+    const avgSpeedEl = document.getElementById("avgSpeed");
     const statusEl = document.getElementById("status");
     const startBtn = document.getElementById("startBtn");
+    const clearBtn = document.getElementById("clearBtn");
 
+    const STORAGE_KEY = "nopeusmittari-reitti-v1";
     let watchId = null;
+    let routePoints = loadRoute();
 
-    function setStatus(text) {
-      statusEl.textContent = text;
+    const map = L.map("map").setView([64.5, 26.0], 5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap"
+    }).addTo(map);
+
+    const routeLine = L.polyline([], { weight: 5 }).addTo(map);
+    let currentMarker = null;
+
+    function setStatus(text) { statusEl.textContent = text; }
+
+    function loadRoute() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch { return []; }
     }
 
-    function startSpeedometer() {
+    function saveRoute() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(routePoints));
+    }
+
+    function toRad(value) { return value * Math.PI / 180; }
+
+    function distanceMeters(a, b) {
+      const R = 6371000;
+      const dLat = toRad(b.lat - a.lat);
+      const dLon = toRad(b.lon - a.lon);
+      const lat1 = toRad(a.lat);
+      const lat2 = toRad(b.lat);
+      const x =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+    }
+
+    function totalDistanceMeters() {
+      let total = 0;
+      for (let i = 1; i < routePoints.length; i++) {
+        total += distanceMeters(routePoints[i - 1], routePoints[i]);
+      }
+      return total;
+    }
+
+    function updateMap() {
+      const latLngs = routePoints.map(p => [p.lat, p.lon]);
+      routeLine.setLatLngs(latLngs);
+
+      if (routePoints.length > 0) {
+        const last = routePoints[routePoints.length - 1];
+
+        if (!currentMarker) {
+          currentMarker = L.marker([last.lat, last.lon]).addTo(map);
+        } else {
+          currentMarker.setLatLng([last.lat, last.lon]);
+        }
+
+        if (routePoints.length === 1) {
+          map.setView([last.lat, last.lon], 16);
+        } else {
+          map.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
+        }
+      } else {
+        if (currentMarker) {
+          map.removeLayer(currentMarker);
+          currentMarker = null;
+        }
+        map.setView([64.5, 26.0], 5);
+      }
+    }
+
+    function updateStats() {
+      const totalMeters = totalDistanceMeters();
+      const km = totalMeters / 1000;
+      distanceEl.textContent = km.toFixed(2);
+      pointsEl.textContent = routePoints.length;
+
+      if (routePoints.length >= 2) {
+        const start = routePoints[0].time;
+        const end = routePoints[routePoints.length - 1].time;
+        const hours = (end - start) / 1000 / 60 / 60;
+        const avg = hours > 0 ? km / hours : 0;
+        avgSpeedEl.textContent = Math.round(avg);
+      } else {
+        avgSpeedEl.textContent = "0";
+      }
+    }
+
+    function updateAll() {
+      updateStats();
+      updateMap();
+    }
+
+    function shouldSavePoint(newPoint) {
+      if (routePoints.length === 0) return true;
+      const last = routePoints[routePoints.length - 1];
+      const meters = distanceMeters(last, newPoint);
+      const seconds = (newPoint.time - last.time) / 1000;
+      return seconds >= 2 && meters >= 2;
+    }
+
+    function startTracking() {
       if (!("geolocation" in navigator)) {
         setStatus("Tämä selain ei tue sijainnin käyttöä.");
         return;
@@ -106,37 +194,43 @@
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        speedEl.textContent = "0";
-        startBtn.textContent = "Käynnistä GPS-nopeus";
-        setStatus("Nopeusmittari pysäytetty.");
+        startBtn.textContent = "Jatka tallennusta";
+        setStatus("Tallennus pysäytetty. Vanha reitti säilyy muistissa.");
         return;
       }
 
-      startBtn.textContent = "Pysäytä";
+      startBtn.textContent = "Pysäytä tallennus";
       setStatus("Haetaan GPS-signaalia...");
 
       watchId = navigator.geolocation.watchPosition(
         position => {
           const speedMps = position.coords.speed;
-
-          if (speedMps === null) {
-            speedEl.textContent = "0";
-            setStatus("Laite ei anna nopeustietoa vielä. Liiku hetki ulkona.");
-            return;
-          }
-
-          const speedKmh = Math.max(0, speedMps * 3.6);
+          const speedKmh = speedMps === null ? 0 : Math.max(0, speedMps * 3.6);
           speedEl.textContent = Math.round(speedKmh);
 
+          const newPoint = {
+            time: Date.now(),
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+            speedKmh,
+            accuracy: position.coords.accuracy
+          };
+
+          if (shouldSavePoint(newPoint)) {
+            routePoints.push(newPoint);
+            saveRoute();
+            updateAll();
+          }
+
           const accuracy = Math.round(position.coords.accuracy);
-          setStatus(`GPS-tarkkuus noin ${accuracy} m`);
+          setStatus(`Tallennus käynnissä. GPS-tarkkuus noin ${accuracy} m.`);
         },
         error => {
-          startBtn.textContent = "Käynnistä GPS-nopeus";
+          startBtn.textContent = "Aloita tallennus";
           watchId = null;
 
           if (error.code === error.PERMISSION_DENIED) {
-            setStatus("Sijainnin käyttö estettiin.");
+            setStatus("Sijainnin käyttö estettiin selaimen asetuksissa.");
           } else if (error.code === error.POSITION_UNAVAILABLE) {
             setStatus("Sijaintia ei saatu. Kokeile ulkona.");
           } else if (error.code === error.TIMEOUT) {
@@ -145,15 +239,26 @@
             setStatus("Tuntematon sijaintivirhe.");
           }
         },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 10000
-        }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
     }
 
-    startBtn.addEventListener("click", startSpeedometer);
+    function clearRoute() {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      routePoints = [];
+      localStorage.removeItem(STORAGE_KEY);
+      speedEl.textContent = "0";
+      startBtn.textContent = "Aloita tallennus";
+      setStatus("Reitti tyhjennetty.");
+      updateAll();
+    }
+
+    startBtn.addEventListener("click", startTracking);
+    clearBtn.addEventListener("click", clearRoute);
+    updateAll();
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
