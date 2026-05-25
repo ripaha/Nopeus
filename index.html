@@ -15,96 +15,224 @@
       color: white; padding: 14px;
     }
     .app {
-      width: min(760px, 100%); margin: 0 auto; background: rgba(255,255,255,.08);
+      width: min(920px, 100%); margin: 0 auto; background: rgba(255,255,255,.08);
       border: 1px solid rgba(255,255,255,.15); border-radius: 24px;
       padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
     }
     h1 { margin: 0 0 12px; font-size: 24px; text-align: center; }
+    .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .tab {
+      background: rgba(15,23,42,.75); color: #cbd5e1;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px; padding: 12px; font-size: 15px; font-weight: 800;
+    }
+    .tab.active { background: #22c55e; color: #052e16; }
+    .view { display: none; }
+    .view.active { display: block; }
     .speed {
       text-align: center; font-size: clamp(64px, 22vw, 120px);
       font-weight: 900; line-height: .9; letter-spacing: -4px;
     }
     .unit { text-align: center; margin-top: 8px; font-size: 26px; color: #cbd5e1; font-weight: 700; }
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 18px 0; }
     .stat {
       background: rgba(15, 23, 42, .72); border: 1px solid rgba(255,255,255,.12);
       border-radius: 16px; padding: 12px 8px; text-align: center;
     }
     .stat strong { display: block; font-size: 22px; line-height: 1.1; }
     .stat span { color: #94a3b8; font-size: 12px; }
-    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-    button { border: 0; border-radius: 16px; padding: 14px 12px; font-size: 16px; font-weight: 800; cursor: pointer; }
+    .buttons, .saveRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .saveRow { grid-template-columns: 1.4fr .8fr; }
+    button, input, select {
+      border: 0; border-radius: 16px; padding: 14px 12px;
+      font-size: 16px; font-weight: 800;
+    }
+    input, select { width: 100%; background: #f8fafc; color: #0f172a; font-weight: 700; }
+    button { cursor: pointer; }
     button:active { transform: scale(.98); }
     .start { background: #22c55e; color: #052e16; }
     .clear { background: #ef4444; color: #fff; }
+    .secondary { background: #38bdf8; color: #082f49; }
+    .darkBtn { background: rgba(15,23,42,.95); color: #fff; border: 1px solid rgba(255,255,255,.18); }
     .status { margin: 10px 0 14px; color: #cbd5e1; min-height: 38px; line-height: 1.35; text-align: center; }
-    #map {
-      width: 100%; height: 360px; border-radius: 20px; overflow: hidden;
+    #map, #savedMap {
+      width: 100%; height: 330px; border-radius: 20px; overflow: hidden;
       background: #0f172a; border: 1px solid rgba(255,255,255,.15);
     }
+    .chartBox {
+      margin-top: 12px; background: rgba(15,23,42,.72);
+      border: 1px solid rgba(255,255,255,.12); border-radius: 20px;
+      padding: 12px;
+    }
+    .chartTitle { color: #cbd5e1; font-size: 14px; font-weight: 800; margin: 0 0 8px; }
+    canvas { width: 100%; display: block; }
+    #speedChart { height: 190px; }
+    #bigChart { height: 430px; }
     .small { margin-top: 12px; color: #94a3b8; font-size: 13px; line-height: 1.4; text-align: center; }
-    @media (max-width: 520px) {
+    .routeList {
+      display: grid; gap: 8px; margin-top: 12px;
+    }
+    .routeItem {
+      display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+      background: rgba(15,23,42,.72); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px; padding: 12px;
+    }
+    .routeItem strong { display: block; }
+    .routeItem span { color: #94a3b8; font-size: 13px; }
+    .miniBtns { display: flex; gap: 8px; }
+    .miniBtns button { padding: 10px 12px; font-size: 13px; border-radius: 12px; }
+    @media (max-width: 700px) {
+      .tabs { grid-template-columns: 1fr; }
       .stats { grid-template-columns: 1fr 1fr; }
-      .buttons { grid-template-columns: 1fr; }
-      #map { height: 300px; }
+      .buttons, .saveRow { grid-template-columns: 1fr; }
+      #map, #savedMap { height: 290px; }
+      #bigChart { height: 330px; }
+      .routeItem { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <main class="app">
     <h1>Nopeusmittari</h1>
-    <div id="speed" class="speed">0</div>
-    <div class="unit">km/h</div>
 
-    <div class="stats">
-      <div class="stat"><strong id="distance">0.00</strong><span>km matka</span></div>
-      <div class="stat"><strong id="points">0</strong><span>GPS-pistettä</span></div>
-      <div class="stat"><strong id="avgSpeed">0</strong><span>km/h keskinopeus</span></div>
+    <div class="tabs">
+      <button id="simpleTab" class="tab active">Pelkkä nopeus</button>
+      <button id="routeTab" class="tab">Reitti + kartta</button>
+      <button id="savedTab" class="tab">Tallennetut reitit</button>
     </div>
 
-    <div class="buttons">
-      <button id="startBtn" class="start">Aloita tallennus</button>
-      <button id="clearBtn" class="clear">Tyhjennä reitti</button>
-    </div>
+    <section id="simpleView" class="view active">
+      <div id="simpleSpeed" class="speed">0</div>
+      <div class="unit">km/h</div>
+      <p id="simpleStatus" class="status">Paina nappia ja salli sijainnin käyttö.</p>
+      <div class="buttons">
+        <button id="simpleStartBtn" class="start">Käynnistä GPS-nopeus</button>
+      </div>
+      <div class="small">Alkuperäinen yksinkertainen nopeusnäyttö ilman reitin tallennusta.</div>
+    </section>
 
-    <p id="status" class="status">Paina Aloita tallennus ja salli sijainnin käyttö.</p>
-    <div id="map"></div>
-    <div class="small">Reitti tallentuu tämän selaimen muistiin. Kartta käyttää OpenStreetMap-karttapohjaa.</div>
+    <section id="routeView" class="view">
+      <div id="routeSpeed" class="speed">0</div>
+      <div class="unit">km/h</div>
+
+      <div class="stats">
+        <div class="stat"><strong id="distance">0.00</strong><span>km matka</span></div>
+        <div class="stat"><strong id="maxSpeed">0</strong><span>km/h maksimi</span></div>
+        <div class="stat"><strong id="avgSpeed">0</strong><span>km/h keski</span></div>
+        <div class="stat"><strong id="points">0</strong><span>GPS-pistettä</span></div>
+      </div>
+
+      <div class="buttons">
+        <button id="routeStartBtn" class="start">Aloita tallennus</button>
+        <button id="clearBtn" class="clear">Tyhjennä nykyinen reitti</button>
+      </div>
+
+      <div class="saveRow">
+        <input id="routeNameInput" placeholder="Reitin nimi, esim. Iltalenkki">
+        <button id="saveRouteBtn" class="secondary">Tallenna reitti</button>
+      </div>
+
+      <p id="routeStatus" class="status">Paina Aloita tallennus ja salli sijainnin käyttö.</p>
+      <div id="map"></div>
+
+      <div class="chartBox">
+        <p class="chartTitle">Nopeus aikajanalla</p>
+        <canvas id="speedChart" width="820" height="190"></canvas>
+      </div>
+
+      <div class="small">Nykyinen reitti säilyy selaimen muistissa, kunnes tyhjennät sen.</div>
+    </section>
+
+    <section id="savedView" class="view">
+      <div class="saveRow">
+        <select id="savedRouteSelect"></select>
+        <button id="loadSavedBtn" class="secondary">Näytä valittu</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><strong id="savedDistance">0.00</strong><span>km matka</span></div>
+        <div class="stat"><strong id="savedMaxSpeed">0</strong><span>km/h maksimi</span></div>
+        <div class="stat"><strong id="savedAvgSpeed">0</strong><span>km/h keski</span></div>
+        <div class="stat"><strong id="savedPoints">0</strong><span>GPS-pistettä</span></div>
+      </div>
+
+      <div id="savedMap"></div>
+
+      <div class="chartBox">
+        <p class="chartTitle">Iso nopeuskäyrä</p>
+        <canvas id="bigChart" width="900" height="430"></canvas>
+      </div>
+
+      <div class="routeList" id="routeList"></div>
+    </section>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const speedEl = document.getElementById("speed");
-    const distanceEl = document.getElementById("distance");
-    const pointsEl = document.getElementById("points");
-    const avgSpeedEl = document.getElementById("avgSpeed");
-    const statusEl = document.getElementById("status");
-    const startBtn = document.getElementById("startBtn");
-    const clearBtn = document.getElementById("clearBtn");
+    const $ = id => document.getElementById(id);
 
-    const STORAGE_KEY = "nopeusmittari-reitti-v1";
-    let watchId = null;
-    let routePoints = loadRoute();
+    const tabs = {
+      simple: $("simpleTab"),
+      route: $("routeTab"),
+      saved: $("savedTab")
+    };
+    const views = {
+      simple: $("simpleView"),
+      route: $("routeView"),
+      saved: $("savedView")
+    };
+
+    const STORAGE_CURRENT = "nopeusmittari-nykyinen-reitti-v3";
+    const STORAGE_SAVED = "nopeusmittari-tallennetut-reitit-v1";
+
+    let simpleWatchId = null;
+    let routeWatchId = null;
+    let routePoints = loadJson(STORAGE_CURRENT, []);
+    let savedRoutes = loadJson(STORAGE_SAVED, []);
+    let selectedSavedRouteId = savedRoutes[0]?.id || null;
+
+    function loadJson(key, fallback) {
+      try { return JSON.parse(localStorage.getItem(key)) || fallback; }
+      catch { return fallback; }
+    }
+
+    function saveJson(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function showView(which) {
+      Object.keys(tabs).forEach(k => {
+        tabs[k].classList.toggle("active", k === which);
+        views[k].classList.toggle("active", k === which);
+      });
+      setTimeout(() => {
+        map.invalidateSize();
+        savedMap.invalidateSize();
+        updateAll();
+        updateSavedView();
+      }, 120);
+    }
+
+    tabs.simple.addEventListener("click", () => showView("simple"));
+    tabs.route.addEventListener("click", () => showView("route"));
+    tabs.saved.addEventListener("click", () => showView("saved"));
 
     const map = L.map("map").setView([64.5, 26.0], 5);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap"
-    }).addTo(map);
+    const savedMap = L.map("savedMap").setView([64.5, 26.0], 5);
+
+    function addTiles(targetMap) {
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(targetMap);
+    }
+    addTiles(map);
+    addTiles(savedMap);
 
     const routeLine = L.polyline([], { weight: 5 }).addTo(map);
+    const savedRouteLine = L.polyline([], { weight: 5 }).addTo(savedMap);
     let currentMarker = null;
-
-    function setStatus(text) { statusEl.textContent = text; }
-
-    function loadRoute() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-      catch { return []; }
-    }
-
-    function saveRoute() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(routePoints));
-    }
+    let savedMarker = null;
 
     function toRad(value) { return value * Math.PI / 180; }
 
@@ -114,67 +242,134 @@
       const dLon = toRad(b.lon - a.lon);
       const lat1 = toRad(a.lat);
       const lat2 = toRad(b.lat);
-      const x =
-        Math.sin(dLat / 2) ** 2 +
+      const x = Math.sin(dLat / 2) ** 2 +
         Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
       return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
     }
 
-    function totalDistanceMeters() {
+    function totalDistanceMeters(points) {
       let total = 0;
-      for (let i = 1; i < routePoints.length; i++) {
-        total += distanceMeters(routePoints[i - 1], routePoints[i]);
-      }
+      for (let i = 1; i < points.length; i++) total += distanceMeters(points[i - 1], points[i]);
       return total;
     }
 
-    function updateMap() {
-      const latLngs = routePoints.map(p => [p.lat, p.lon]);
-      routeLine.setLatLngs(latLngs);
-
-      if (routePoints.length > 0) {
-        const last = routePoints[routePoints.length - 1];
-
-        if (!currentMarker) {
-          currentMarker = L.marker([last.lat, last.lon]).addTo(map);
-        } else {
-          currentMarker.setLatLng([last.lat, last.lon]);
-        }
-
-        if (routePoints.length === 1) {
-          map.setView([last.lat, last.lon], 16);
-        } else {
-          map.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
-        }
-      } else {
-        if (currentMarker) {
-          map.removeLayer(currentMarker);
-          currentMarker = null;
-        }
-        map.setView([64.5, 26.0], 5);
-      }
+    function maxSpeedKmh(points) {
+      return points.reduce((max, p) => Math.max(max, p.speedKmh || 0), 0);
     }
 
-    function updateStats() {
-      const totalMeters = totalDistanceMeters();
-      const km = totalMeters / 1000;
-      distanceEl.textContent = km.toFixed(2);
-      pointsEl.textContent = routePoints.length;
+    function avgSpeedKmh(points) {
+      if (points.length < 2) return 0;
+      const km = totalDistanceMeters(points) / 1000;
+      const hours = (points[points.length - 1].time - points[0].time) / 1000 / 60 / 60;
+      return hours > 0 ? km / hours : 0;
+    }
 
-      if (routePoints.length >= 2) {
-        const start = routePoints[0].time;
-        const end = routePoints[routePoints.length - 1].time;
-        const hours = (end - start) / 1000 / 60 / 60;
-        const avg = hours > 0 ? km / hours : 0;
-        avgSpeedEl.textContent = Math.round(avg);
+    function formatDate(ts) {
+      return new Date(ts).toLocaleString("fi-FI", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      });
+    }
+
+    function updatePolyline(targetMap, line, markerRefName, points) {
+      const latLngs = points.map(p => [p.lat, p.lon]);
+      line.setLatLngs(latLngs);
+
+      let marker = markerRefName === "current" ? currentMarker : savedMarker;
+
+      if (points.length > 0) {
+        const last = points[points.length - 1];
+        if (!marker) marker = L.marker([last.lat, last.lon]).addTo(targetMap);
+        else marker.setLatLng([last.lat, last.lon]);
+
+        if (points.length === 1) targetMap.setView([last.lat, last.lon], 16);
+        else targetMap.fitBounds(line.getBounds(), { padding: [28, 28] });
       } else {
-        avgSpeedEl.textContent = "0";
+        if (marker) {
+          targetMap.removeLayer(marker);
+          marker = null;
+        }
+        targetMap.setView([64.5, 26.0], 5);
+      }
+
+      if (markerRefName === "current") currentMarker = marker;
+      else savedMarker = marker;
+    }
+
+    function drawChart(canvas, points, big = false) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = "rgba(255,255,255,.16)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 5; i++) {
+        const y = 14 + (h - 48) * i / 6;
+        ctx.beginPath();
+        ctx.moveTo(46, y);
+        ctx.lineTo(w - 16, y);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = big ? "14px system-ui" : "12px system-ui";
+      ctx.fillText("km/h", 8, 20);
+
+      if (points.length < 2) {
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = big ? "18px system-ui" : "15px system-ui";
+        ctx.fillText("Nopeuskäyrä ilmestyy, kun pisteitä on vähintään kaksi.", 52, h / 2);
+        return;
+      }
+
+      const speeds = points.map(p => p.speedKmh || 0);
+      const max = Math.max(10, Math.ceil(Math.max(...speeds) / 10) * 10);
+      const startTime = points[0].time;
+      const endTime = points[points.length - 1].time;
+      const duration = Math.max(1, endTime - startTime);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(String(max), 8, 32);
+      ctx.fillText("0", 24, h - 28);
+
+      ctx.strokeStyle = "#22c55e";
+      ctx.lineWidth = big ? 4 : 3;
+      ctx.beginPath();
+
+      points.forEach((p, i) => {
+        const x = 48 + ((p.time - startTime) / duration) * (w - 66);
+        const y = 14 + (1 - ((p.speedKmh || 0) / max)) * (h - 52);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      ctx.stroke();
+
+      ctx.fillStyle = "#94a3b8";
+      const minutes = Math.round(duration / 1000 / 60);
+      ctx.fillText("0 min", 48, h - 8);
+      ctx.fillText(minutes + " min", w - 78, h - 8);
+
+      if (big) {
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "15px system-ui";
+        ctx.fillText("Matka " + (totalDistanceMeters(points) / 1000).toFixed(2) + " km", 130, 22);
+        ctx.fillText("Maksimi " + Math.round(maxSpeedKmh(points)) + " km/h", 260, 22);
+        ctx.fillText("Keski " + Math.round(avgSpeedKmh(points)) + " km/h", 410, 22);
       }
     }
 
     function updateAll() {
-      updateStats();
-      updateMap();
+      $("distance").textContent = (totalDistanceMeters(routePoints) / 1000).toFixed(2);
+      $("points").textContent = routePoints.length;
+      $("maxSpeed").textContent = Math.round(maxSpeedKmh(routePoints));
+      $("avgSpeed").textContent = Math.round(avgSpeedKmh(routePoints));
+      updatePolyline(map, routeLine, "current", routePoints);
+      drawChart($("speedChart"), routePoints);
     }
 
     function shouldSavePoint(newPoint) {
@@ -185,28 +380,64 @@
       return seconds >= 2 && meters >= 2;
     }
 
-    function startTracking() {
+    function startSimpleSpeed() {
       if (!("geolocation" in navigator)) {
-        setStatus("Tämä selain ei tue sijainnin käyttöä.");
+        $("simpleStatus").textContent = "Tämä selain ei tue sijainnin käyttöä.";
         return;
       }
 
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        startBtn.textContent = "Jatka tallennusta";
-        setStatus("Tallennus pysäytetty. Vanha reitti säilyy muistissa.");
+      if (simpleWatchId !== null) {
+        navigator.geolocation.clearWatch(simpleWatchId);
+        simpleWatchId = null;
+        $("simpleStartBtn").textContent = "Käynnistä GPS-nopeus";
+        $("simpleSpeed").textContent = "0";
+        $("simpleStatus").textContent = "Nopeusmittari pysäytetty.";
         return;
       }
 
-      startBtn.textContent = "Pysäytä tallennus";
-      setStatus("Haetaan GPS-signaalia...");
+      $("simpleStartBtn").textContent = "Pysäytä";
+      $("simpleStatus").textContent = "Haetaan GPS-signaalia...";
 
-      watchId = navigator.geolocation.watchPosition(
+      simpleWatchId = navigator.geolocation.watchPosition(
         position => {
           const speedMps = position.coords.speed;
           const speedKmh = speedMps === null ? 0 : Math.max(0, speedMps * 3.6);
-          speedEl.textContent = Math.round(speedKmh);
+          $("simpleSpeed").textContent = Math.round(speedKmh);
+          $("simpleStatus").textContent = `GPS-tarkkuus noin ${Math.round(position.coords.accuracy)} m.`;
+        },
+        error => {
+          $("simpleStartBtn").textContent = "Käynnistä GPS-nopeus";
+          simpleWatchId = null;
+          $("simpleStatus").textContent = error.code === error.PERMISSION_DENIED
+            ? "Sijainnin käyttö estettiin."
+            : "Sijaintia ei saatu. Kokeile ulkona.";
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      );
+    }
+
+    function startRouteTracking() {
+      if (!("geolocation" in navigator)) {
+        $("routeStatus").textContent = "Tämä selain ei tue sijainnin käyttöä.";
+        return;
+      }
+
+      if (routeWatchId !== null) {
+        navigator.geolocation.clearWatch(routeWatchId);
+        routeWatchId = null;
+        $("routeStartBtn").textContent = "Jatka tallennusta";
+        $("routeStatus").textContent = "Tallennus pysäytetty. Reitti säilyy muistissa.";
+        return;
+      }
+
+      $("routeStartBtn").textContent = "Pysäytä tallennus";
+      $("routeStatus").textContent = "Haetaan GPS-signaalia...";
+
+      routeWatchId = navigator.geolocation.watchPosition(
+        position => {
+          const speedMps = position.coords.speed;
+          const speedKmh = speedMps === null ? 0 : Math.max(0, speedMps * 3.6);
+          $("routeSpeed").textContent = Math.round(speedKmh);
 
           const newPoint = {
             time: Date.now(),
@@ -218,52 +449,156 @@
 
           if (shouldSavePoint(newPoint)) {
             routePoints.push(newPoint);
-            saveRoute();
+            saveJson(STORAGE_CURRENT, routePoints);
             updateAll();
           }
 
-          const accuracy = Math.round(position.coords.accuracy);
-          setStatus(`Tallennus käynnissä. GPS-tarkkuus noin ${accuracy} m.`);
+          $("routeStatus").textContent = `Tallennus käynnissä. GPS-tarkkuus noin ${Math.round(position.coords.accuracy)} m.`;
         },
         error => {
-          startBtn.textContent = "Aloita tallennus";
-          watchId = null;
-
-          if (error.code === error.PERMISSION_DENIED) {
-            setStatus("Sijainnin käyttö estettiin selaimen asetuksissa.");
-          } else if (error.code === error.POSITION_UNAVAILABLE) {
-            setStatus("Sijaintia ei saatu. Kokeile ulkona.");
-          } else if (error.code === error.TIMEOUT) {
-            setStatus("Sijainnin haku aikakatkaistiin.");
-          } else {
-            setStatus("Tuntematon sijaintivirhe.");
-          }
+          $("routeStartBtn").textContent = "Aloita tallennus";
+          routeWatchId = null;
+          $("routeStatus").textContent = error.code === error.PERMISSION_DENIED
+            ? "Sijainnin käyttö estettiin selaimen asetuksissa."
+            : "Sijaintia ei saatu. Kokeile ulkona.";
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
     }
 
-    function clearRoute() {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
+    function clearCurrentRoute() {
+      if (routeWatchId !== null) {
+        navigator.geolocation.clearWatch(routeWatchId);
+        routeWatchId = null;
       }
       routePoints = [];
-      localStorage.removeItem(STORAGE_KEY);
-      speedEl.textContent = "0";
-      startBtn.textContent = "Aloita tallennus";
-      setStatus("Reitti tyhjennetty.");
+      localStorage.removeItem(STORAGE_CURRENT);
+      $("routeSpeed").textContent = "0";
+      $("routeStartBtn").textContent = "Aloita tallennus";
+      $("routeStatus").textContent = "Nykyinen reitti tyhjennetty.";
       updateAll();
     }
 
-    startBtn.addEventListener("click", startTracking);
-    clearBtn.addEventListener("click", clearRoute);
+    function saveCurrentRoute() {
+      if (routePoints.length < 2) {
+        $("routeStatus").textContent = "Reitillä pitää olla vähintään kaksi GPS-pistettä ennen tallennusta.";
+        return;
+      }
+
+      const givenName = $("routeNameInput").value.trim();
+      const name = givenName || "Reitti " + formatDate(Date.now());
+
+      const saved = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        name,
+        createdAt: Date.now(),
+        points: routePoints
+      };
+
+      savedRoutes.unshift(saved);
+      saveJson(STORAGE_SAVED, savedRoutes);
+      selectedSavedRouteId = saved.id;
+      $("routeNameInput").value = "";
+      $("routeStatus").textContent = `Reitti "${name}" tallennettu.`;
+      updateSavedView();
+    }
+
+    function updateSavedView() {
+      const select = $("savedRouteSelect");
+      select.innerHTML = "";
+
+      if (savedRoutes.length === 0) {
+        const opt = document.createElement("option");
+        opt.textContent = "Ei tallennettuja reittejä";
+        opt.value = "";
+        select.appendChild(opt);
+        selectedSavedRouteId = null;
+      } else {
+        savedRoutes.forEach(route => {
+          const opt = document.createElement("option");
+          opt.value = route.id;
+          opt.textContent = route.name + " — " + formatDate(route.createdAt);
+          select.appendChild(opt);
+        });
+        if (!selectedSavedRouteId || !savedRoutes.find(r => r.id === selectedSavedRouteId)) {
+          selectedSavedRouteId = savedRoutes[0].id;
+        }
+        select.value = selectedSavedRouteId;
+      }
+
+      const route = savedRoutes.find(r => r.id === selectedSavedRouteId);
+      const points = route ? route.points : [];
+
+      $("savedDistance").textContent = (totalDistanceMeters(points) / 1000).toFixed(2);
+      $("savedMaxSpeed").textContent = Math.round(maxSpeedKmh(points));
+      $("savedAvgSpeed").textContent = Math.round(avgSpeedKmh(points));
+      $("savedPoints").textContent = points.length;
+
+      updatePolyline(savedMap, savedRouteLine, "saved", points);
+      drawChart($("bigChart"), points, true);
+
+      const list = $("routeList");
+      list.innerHTML = "";
+      savedRoutes.forEach(routeItem => {
+        const item = document.createElement("div");
+        item.className = "routeItem";
+        const km = (totalDistanceMeters(routeItem.points) / 1000).toFixed(2);
+        item.innerHTML = `
+          <div>
+            <strong>${escapeHtml(routeItem.name)}</strong>
+            <span>${formatDate(routeItem.createdAt)} · ${km} km · max ${Math.round(maxSpeedKmh(routeItem.points))} km/h</span>
+          </div>
+          <div class="miniBtns">
+            <button class="darkBtn" data-open="${routeItem.id}">Näytä</button>
+            <button class="clear" data-delete="${routeItem.id}">Poista</button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+
+      list.querySelectorAll("[data-open]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          selectedSavedRouteId = btn.dataset.open;
+          updateSavedView();
+          $("savedRouteSelect").value = selectedSavedRouteId;
+        });
+      });
+
+      list.querySelectorAll("[data-delete]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.delete;
+          savedRoutes = savedRoutes.filter(r => r.id !== id);
+          saveJson(STORAGE_SAVED, savedRoutes);
+          if (selectedSavedRouteId === id) selectedSavedRouteId = savedRoutes[0]?.id || null;
+          updateSavedView();
+        });
+      });
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[m]));
+    }
+
+    $("simpleStartBtn").addEventListener("click", startSimpleSpeed);
+    $("routeStartBtn").addEventListener("click", startRouteTracking);
+    $("clearBtn").addEventListener("click", clearCurrentRoute);
+    $("saveRouteBtn").addEventListener("click", saveCurrentRoute);
+    $("loadSavedBtn").addEventListener("click", () => {
+      selectedSavedRouteId = $("savedRouteSelect").value;
+      updateSavedView();
+    });
+    $("savedRouteSelect").addEventListener("change", () => {
+      selectedSavedRouteId = $("savedRouteSelect").value;
+      updateSavedView();
+    });
+
     updateAll();
+    updateSavedView();
 
     if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js");
-      });
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
     }
   </script>
 </body>

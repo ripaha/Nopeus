@@ -1,4 +1,4 @@
-const CACHE_NAME = "nopeusmittari-reitti-v2";
+const CACHE_NAME = "nopeusmittari-reitit-v4";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", event => {
